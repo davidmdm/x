@@ -92,7 +92,7 @@ func Copy(ctx context.Context, dst io.Writer, src io.Reader, opts ...CopyOption)
 
 	select {
 	case <-ctx.Done():
-		return atomicN.Load(), ctx.Err()
+		return atomicN.Load(), context.Cause(ctx)
 	case err := <-errCh:
 		return atomicN.Load(), err
 	}
