@@ -1,0 +1,8 @@
+.vscode/
+.idea/
+
+dev-scripts/
+playground/
+coverage/
+
+*.out
