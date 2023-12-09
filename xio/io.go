@@ -19,8 +19,13 @@ var errInvalidWrite = errors.New("invalid write result")
 // write goroutine exits. Use WaitForLastOp(false) if src or dst is slow and you do not care about the total
 // amount of bytes written to dst if a cancelation occurs.
 func Copy(ctx context.Context, dst io.Writer, src io.Reader, opts ...CopyOption) (n int64, err error) {
-	err = ctx.Err()
-	if err != nil {
+	defer func() {
+		if err == context.Canceled {
+			err = context.Cause(ctx)
+		}
+	}()
+
+	if err = ctx.Err(); err != nil {
 		return
 	}
 
@@ -92,7 +97,7 @@ func Copy(ctx context.Context, dst io.Writer, src io.Reader, opts ...CopyOption)
 
 	select {
 	case <-ctx.Done():
-		return atomicN.Load(), context.Cause(ctx)
+		return atomicN.Load(), ctx.Err()
 	case err := <-errCh:
 		return atomicN.Load(), err
 	}
