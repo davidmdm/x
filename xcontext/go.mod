@@ -3,7 +3,7 @@ module github.com/davidmdm/x/xcontext
 go 1.21
 
 require (
-	github.com/davidmdm/env v0.0.0-20230831014149-73a9126ee3ca
+	github.com/davidmdm/conf v0.0.0-20231220143610-1857ce3fa3a0
 	github.com/stretchr/testify v1.8.2
 )
 

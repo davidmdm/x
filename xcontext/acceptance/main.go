@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/davidmdm/env"
+	"github.com/davidmdm/conf"
 	"github.com/davidmdm/x/xcontext"
 )
 
@@ -18,10 +18,10 @@ func main() {
 		useCancel   bool
 	)
 
-	env.Var(&rootTimeout, "ROOT_TIMEOUT")
-	env.Var(&useCancel, "USE_CANCEL")
-
-	env.MustParse()
+	parser := conf.MakeParser()
+	conf.Var(parser, &rootTimeout, "ROOT_TIMEOUT")
+	conf.Var(parser, &useCancel, "USE_CANCEL")
+	parser.MustParse()
 
 	ctx, cancel := func() (context.Context, context.CancelFunc) {
 		if rootTimeout == 0 {
