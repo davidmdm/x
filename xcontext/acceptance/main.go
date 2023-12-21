@@ -18,10 +18,9 @@ func main() {
 		useCancel   bool
 	)
 
-	parser := conf.MakeParser()
-	conf.Var(parser, &rootTimeout, "ROOT_TIMEOUT")
-	conf.Var(parser, &useCancel, "USE_CANCEL")
-	parser.MustParse()
+	conf.Var(conf.Environ, &rootTimeout, "ROOT_TIMEOUT")
+	conf.Var(conf.Environ, &useCancel, "USE_CANCEL")
+	conf.Environ.MustParse()
 
 	ctx, cancel := func() (context.Context, context.CancelFunc) {
 		if rootTimeout == 0 {
