@@ -1,6 +1,7 @@
 package xerr
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -62,4 +63,15 @@ func MultiErrWithIndentFrom(msg, indent string, errs ...error) error {
 
 func MultiErrFrom(msg string, errs ...error) error {
 	return MultiErrWithIndentFrom(msg, "  ", errs...)
+}
+
+func MultiErrOrderedFrom(msg string, errs ...error) error {
+	copy := append([]error{}, errs...)
+	slices.SortFunc(copy, func(a, b error) int {
+		if a == nil || b == nil {
+			return 0
+		}
+		return strings.Compare(a.Error(), b.Error())
+	})
+	return MultiErrFrom(msg, copy...)
 }
