@@ -93,6 +93,12 @@ func TestMultiFrom(t *testing.T) {
 			Errs:     []error{errors.New("a"), errors.New("b")},
 			Expected: "custom:\n  - a\n  - b",
 		},
+		{
+			Name:     "msg and multiple error with nil",
+			Msg:      "custom",
+			Errs:     []error{nil, errors.New("a"), errors.New("b")},
+			Expected: "custom:\n  - a\n  - b",
+		},
 	}
 
 	for _, tc := range cases {

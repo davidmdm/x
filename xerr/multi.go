@@ -55,7 +55,7 @@ func MultiErrWithIndentFrom(msg, indent string, errs ...error) error {
 		return nil
 	}
 	return MultiErr{
-		Errors: errs,
+		Errors: nonNilErrs,
 		Msg:    msg,
 		Indent: indent,
 	}
