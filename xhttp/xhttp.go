@@ -45,6 +45,7 @@ func TimeoutHandler(handler http.Handler, opts TimeoutOptions) http.Handler {
 			headers:         make(http.Header),
 			ResponseWriter:  w,
 			Request:         r,
+			Controller:      http.NewResponseController(w),
 		}
 
 		defer time.AfterFunc(opts.Initial, tw.Timeout).Stop()
@@ -88,7 +89,8 @@ type timeoutWriter struct {
 	state   *atomic.Uint32
 	headers http.Header
 	http.ResponseWriter
-	Request *http.Request
+	Request    *http.Request
+	Controller *http.ResponseController
 }
 
 func (w timeoutWriter) Timeout() {
@@ -121,18 +123,23 @@ func (w timeoutWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-func (w *timeoutWriter) Write(data []byte) (int, error) {
+func (w *timeoutWriter) Write(data []byte) (n int, err error) {
 	if !w.tryWriting() {
 		return 0, ErrTimeoutBeforeWrite
 	}
 
 	if !w.rollingDeadline.IsZero() && time.Now().After(w.rollingDeadline) {
-		return 0, ErrTimeoutDuringWrite
+		w.Controller.SetWriteDeadline(w.rollingDeadline)
+	}
+
+	n, err = w.ResponseWriter.Write(data)
+	if err != nil {
+		return
 	}
 
 	if w.Rolling > 0 {
-		defer func() { w.rollingDeadline = time.Now().Add(w.Rolling) }()
+		w.rollingDeadline = time.Now().Add(w.Rolling)
 	}
 
-	return w.ResponseWriter.Write(data)
+	return
 }

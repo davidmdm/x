@@ -1,6 +1,7 @@
 package xhttp_test
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,8 @@ func TestTimeoutHandler(t *testing.T) {
 
 		Opts xhttp.TimeoutOptions
 
+		ExpectedReadError func(*testing.T, error)
+
 		ExpectedStatus int
 		ExpectedHeader map[string]string
 		ExpectedBody   string
@@ -31,6 +34,7 @@ func TestTimeoutHandler(t *testing.T) {
 			Opts: xhttp.TimeoutOptions{
 				Initial: 50 * time.Millisecond,
 			},
+
 			ExpectedStatus: 200,
 			ExpectedHeader: map[string]string{},
 			ExpectedBody:   "success!",
@@ -104,7 +108,10 @@ func TestTimeoutHandler(t *testing.T) {
 					}
 				}
 			},
-			Opts:           xhttp.TimeoutOptions{Rolling: 5 * time.Millisecond},
+			Opts: xhttp.TimeoutOptions{Rolling: 5 * time.Millisecond},
+			ExpectedReadError: func(t *testing.T, err error) {
+				require.True(t, errors.Is(err, io.EOF))
+			},
 			ExpectedStatus: 200,
 			ExpectedHeader: map[string]string{
 				"Content-Type": "application/json",
@@ -132,7 +139,11 @@ func TestTimeoutHandler(t *testing.T) {
 			}
 
 			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
+			if tc.ExpectedReadError != nil {
+				tc.ExpectedReadError(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
 			require.Equal(t, tc.ExpectedBody, string(body))
 		})
