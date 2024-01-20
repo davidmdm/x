@@ -17,19 +17,6 @@ type TimeoutOptions struct {
 	Handler http.Handler
 }
 
-var (
-	ErrTimeoutBeforeWrite = errors.New("request timeout reached before write")
-	ErrTimeoutDuringWrite = errors.New("request rolling timeout reached during write")
-)
-
-func defaultTimeoutHandler(w http.ResponseWriter, r *http.Request) {
-	const defaultTimeoutResponse = `<html><body>Service Unavailable</body></html>`
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(defaultTimeoutResponse)))
-	w.WriteHeader(503)
-	io.WriteString(w, defaultTimeoutResponse)
-}
-
 func TimeoutHandler(handler http.Handler, opts TimeoutOptions) http.Handler {
 	if opts.Initial <= 0 && opts.Rolling <= 0 {
 		return handler
@@ -51,20 +38,16 @@ func TimeoutHandler(handler http.Handler, opts TimeoutOptions) http.Handler {
 
 		tw := timeoutWriter{
 			TimeoutOptions:  opts,
+			done:            done,
 			cancel:          cancel,
 			rollingDeadline: time.Time{},
 			state:           new(atomic.Uint32),
-			Request:         r,
 			headers:         make(http.Header),
 			ResponseWriter:  w,
+			Request:         r,
 		}
 
-		timout := func() {
-			tw.Timeout()
-			done <- struct{}{}
-		}
-
-		defer time.AfterFunc(opts.Initial, timout).Stop()
+		defer time.AfterFunc(opts.Initial, tw.Timeout).Stop()
 
 		go func() {
 			handler.ServeHTTP(&tw, r)
@@ -73,6 +56,19 @@ func TimeoutHandler(handler http.Handler, opts TimeoutOptions) http.Handler {
 
 		<-done
 	})
+}
+
+var (
+	ErrTimeoutBeforeWrite = errors.New("request timeout reached before write")
+	ErrTimeoutDuringWrite = errors.New("request rolling timeout reached during write")
+)
+
+func defaultTimeoutHandler(w http.ResponseWriter, r *http.Request) {
+	const defaultTimeoutResponse = `<html><body>Service Unavailable</body></html>`
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(defaultTimeoutResponse)))
+	w.WriteHeader(503)
+	io.WriteString(w, defaultTimeoutResponse)
 }
 
 const (
@@ -84,14 +80,15 @@ const (
 type timeoutWriter struct {
 	TimeoutOptions
 
+	done   chan<- struct{}
 	cancel context.CancelCauseFunc
 
 	rollingDeadline time.Time
 
 	state   *atomic.Uint32
-	Request *http.Request
 	headers http.Header
 	http.ResponseWriter
+	Request *http.Request
 }
 
 func (w timeoutWriter) Timeout() {
@@ -100,6 +97,7 @@ func (w timeoutWriter) Timeout() {
 	}
 	w.cancel(fmt.Errorf("%w: %w", context.Canceled, ErrTimeoutBeforeWrite))
 	w.Handler.ServeHTTP(w.ResponseWriter, w.Request)
+	w.done <- struct{}{}
 }
 
 func (w timeoutWriter) Header() http.Header {

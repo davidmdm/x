@@ -53,15 +53,64 @@ func TestTimeoutHandler(t *testing.T) {
 			},
 			ExpectedBody: "<html><body>Service Unavailable</body></html>",
 		},
-		// {
-		// 	Name: "happying rolling response",
-		// 	Handler: func(http.ResponseWriter, *http.Request) {
-		// 	},
-		// 	Opts:           xhttp.TimeoutOptions{},
-		// 	ExpectedStatus: 0,
-		// 	ExpectedHeader: map[string]string{},
-		// 	ExpectedBody:   "",
-		// },
+		{
+			Name: "happying rolling response",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				stream := []struct {
+					data  string
+					delay time.Duration
+				}{
+					{data: `{"hel`, delay: 2 * time.Millisecond},
+					{data: `lo":`, delay: 2 * time.Millisecond},
+					{data: `"wor`, delay: 2 * time.Millisecond},
+					{data: `ld"`, delay: 2 * time.Millisecond},
+					{data: `}`, delay: 2 * time.Millisecond},
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+
+				for _, value := range stream {
+					time.Sleep(value.delay)
+					io.WriteString(w, value.data)
+				}
+			},
+			Opts:           xhttp.TimeoutOptions{Rolling: 5 * time.Millisecond},
+			ExpectedStatus: 200,
+			ExpectedHeader: map[string]string{
+				"Content-Type": "application/json",
+			},
+			ExpectedBody: `{"hello":"world"}`,
+		},
+		{
+			Name: "failed rolling response",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				stream := []struct {
+					data  string
+					delay time.Duration
+				}{
+					{data: `{"hel`, delay: 0 * time.Millisecond},
+					{data: `lo":`, delay: 2 * time.Millisecond},
+					{data: `"wor`, delay: 4 * time.Millisecond},
+					{data: `ld"`, delay: 8 * time.Millisecond},
+					{data: `}`, delay: 160 * time.Millisecond},
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+
+				for _, value := range stream {
+					time.Sleep(value.delay)
+					if _, err := io.WriteString(w, value.data); err != nil {
+						return
+					}
+				}
+			},
+			Opts:           xhttp.TimeoutOptions{Rolling: 5 * time.Millisecond},
+			ExpectedStatus: 200,
+			ExpectedHeader: map[string]string{
+				"Content-Type": "application/json",
+			},
+			ExpectedBody: `{"hello":"wor`,
+		},
 	}
 
 	for _, tc := range cases {
