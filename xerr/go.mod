@@ -3,7 +3,6 @@ module github.com/davidmdm/x/xerr
 go 1.21.4
 
 require (
-	github.com/davidmdm/xerr v0.0.0-20231118064540-157fe952c157
 	github.com/stretchr/testify v1.8.4
 )
 

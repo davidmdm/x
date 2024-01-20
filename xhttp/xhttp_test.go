@@ -13,8 +13,8 @@ import (
 
 func TestTimeoutHandler(t *testing.T) {
 	cases := []struct {
-		Name        string
-		ResponseLag time.Duration
+		Name    string
+		Handler http.HandlerFunc
 
 		Opts xhttp.TimeoutOptions
 
@@ -23,8 +23,11 @@ func TestTimeoutHandler(t *testing.T) {
 		ExpectedBody   string
 	}{
 		{
-			Name:        "happy",
-			ResponseLag: 0,
+			Name: "happy",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Test-Dirty-Write", "true")
+				io.WriteString(w, "success!")
+			},
 			Opts: xhttp.TimeoutOptions{
 				Initial: 50 * time.Millisecond,
 			},
@@ -34,9 +37,12 @@ func TestTimeoutHandler(t *testing.T) {
 		},
 
 		{
-			Name:        "basic initial timeout",
-			ResponseLag: 50 * time.Millisecond,
-			Opts: xhttp.TimeoutOptions{
+			Name: "basic initial timeout",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(10 * time.Millisecond)
+				w.Header().Set("Test-Dirty-Write", "true")
+				io.WriteString(w, "success!")
+			}, Opts: xhttp.TimeoutOptions{
 				Initial: 1 * time.Millisecond,
 			},
 			ExpectedStatus: 503,
@@ -47,19 +53,20 @@ func TestTimeoutHandler(t *testing.T) {
 			},
 			ExpectedBody: "<html><body>Service Unavailable</body></html>",
 		},
+		// {
+		// 	Name: "happying rolling response",
+		// 	Handler: func(http.ResponseWriter, *http.Request) {
+		// 	},
+		// 	Opts:           xhttp.TimeoutOptions{},
+		// 	ExpectedStatus: 0,
+		// 	ExpectedHeader: map[string]string{},
+		// 	ExpectedBody:   "",
+		// },
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if tc.ResponseLag > 0 {
-					time.Sleep(tc.ResponseLag)
-				}
-				w.Header().Set("Test-Dirty-Write", "true")
-				io.WriteString(w, "success!")
-			})
-
-			handler = xhttp.TimeoutHandler(handler, tc.Opts)
+			handler := xhttp.TimeoutHandler(tc.Handler, tc.Opts)
 
 			server := httptest.NewServer(handler)
 			defer server.Close()
