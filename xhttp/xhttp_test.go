@@ -1,6 +1,7 @@
 package xhttp_test
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -38,12 +39,10 @@ func TestTimeoutHandler(t *testing.T) {
 			Opts: xhttp.TimeoutOptions{
 				Initial: 50 * time.Millisecond,
 			},
-
 			ExpectedStatus: 200,
 			ExpectedHeader: map[string]string{},
 			ExpectedBody:   "success!",
 		},
-
 		{
 			Name: "basic initial timeout",
 			Handler: func(w http.ResponseWriter, r *http.Request) error {
@@ -61,6 +60,33 @@ func TestTimeoutHandler(t *testing.T) {
 				"Test-Dirty-Write": "",
 			},
 			ExpectedBody: "<html><body>Service Unavailable</body></html>",
+			ExpectedServeError: func(t *testing.T, err error) {
+				require.EqualError(t, err, "request timeout reached before write")
+			},
+		},
+		{
+			Name: "basic initial timeout with custom handler",
+			Handler: func(w http.ResponseWriter, r *http.Request) error {
+				time.Sleep(10 * time.Millisecond)
+				w.Header().Set("Test-Dirty-Write", "true")
+				_, err := io.WriteString(w, "success!")
+				return err
+			},
+			Opts: xhttp.TimeoutOptions{
+				Initial: 1 * time.Millisecond,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(500)
+					json.NewEncoder(w).Encode(map[string]string{"error": "service unavailable"})
+				}),
+			},
+			ExpectedStatus: 500,
+			ExpectedHeader: map[string]string{
+				"Content-Type":     "application/json",
+				"Content-Length":   "32",
+				"Test-Dirty-Write": "",
+			},
+			ExpectedBody: `{"error":"service unavailable"}` + "\n",
 			ExpectedServeError: func(t *testing.T, err error) {
 				require.EqualError(t, err, "request timeout reached before write")
 			},

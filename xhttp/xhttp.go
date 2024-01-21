@@ -103,22 +103,24 @@ func (w timeoutWriter) Timeout() {
 }
 
 func (w timeoutWriter) Header() http.Header {
-	if w.tryWriting() {
+	if w.state.Load() == writing {
 		return w.ResponseWriter.Header()
 	}
 	return w.headers
 }
 
 func (w timeoutWriter) tryWriting() bool {
-	return w.state.CompareAndSwap(pending, writing) || w.state.Load() == writing
+	if w.state.CompareAndSwap(pending, writing) {
+		for key := range w.headers {
+			w.ResponseWriter.Header().Set(key, w.headers.Get(key))
+		}
+	}
+	return w.state.Load() == writing
 }
 
 func (w timeoutWriter) WriteHeader(status int) {
 	if !w.tryWriting() {
 		return
-	}
-	for name := range w.headers {
-		w.ResponseWriter.Header().Set(name, w.headers.Get(name))
 	}
 	w.ResponseWriter.WriteHeader(status)
 }
