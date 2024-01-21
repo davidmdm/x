@@ -129,7 +129,13 @@ func (w *timeoutWriter) Write(data []byte) (n int, err error) {
 	}
 
 	if !w.rollingDeadline.IsZero() && time.Now().After(w.rollingDeadline) {
-		w.Controller.SetWriteDeadline(w.rollingDeadline)
+		w.Controller.SetWriteDeadline(w.rollingDeadline.Add(-time.Hour))
+		if _, deadlineErr := w.ResponseWriter.Write(data); deadlineErr != nil {
+			err = fmt.Errorf("%w: %w", ErrTimeoutDuringWrite, deadlineErr)
+		} else {
+			err = ErrTimeoutDuringWrite
+		}
+		return
 	}
 
 	n, err = w.ResponseWriter.Write(data)
@@ -142,4 +148,9 @@ func (w *timeoutWriter) Write(data []byte) (n int, err error) {
 	}
 
 	return
+}
+
+// Unwrap satisfies the implicit http.rwUnwrapper interface.
+func (w timeoutWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
