@@ -34,28 +34,32 @@ func TimeoutHandler(handler http.Handler, opts TimeoutOptions) http.Handler {
 
 		r = r.WithContext(ctx)
 
-		done := make(chan struct{}, 2)
+		done := make(chan int, 3)
 
 		tw := timeoutWriter{
-			TimeoutOptions:  opts,
-			done:            done,
-			cancel:          cancel,
-			rollingDeadline: time.Time{},
-			state:           new(atomic.Uint32),
-			headers:         make(http.Header),
-			ResponseWriter:  w,
-			Request:         r,
-			Controller:      http.NewResponseController(w),
+			TimeoutOptions: opts,
+			done:           done,
+			cancel:         cancel,
+			rollingTimer:   nil,
+			state:          new(atomic.Uint32),
+			headers:        make(http.Header),
+			ResponseWriter: w,
+			Request:        r,
+			Controller:     http.NewResponseController(w),
 		}
 
 		defer time.AfterFunc(opts.Initial, tw.Timeout).Stop()
 
 		go func() {
 			handler.ServeHTTP(&tw, r)
-			done <- struct{}{}
+			done <- writing
 		}()
 
-		<-done
+		if state := <-done; state == hung {
+			tw.Controller.Flush()
+			tw.Controller.SetWriteDeadline(time.Now().Add(-time.Second))
+			w.Write(nil)
+		}
 	})
 }
 
@@ -76,15 +80,16 @@ const (
 	pending = iota
 	timeout
 	writing
+	hung
 )
 
 type timeoutWriter struct {
 	TimeoutOptions
 
-	done   chan<- struct{}
+	done   chan<- int
 	cancel context.CancelCauseFunc
 
-	rollingDeadline time.Time
+	rollingTimer *time.Timer
 
 	state   *atomic.Uint32
 	headers http.Header
@@ -99,7 +104,7 @@ func (w timeoutWriter) Timeout() {
 	}
 	w.cancel(fmt.Errorf("%w: %w", context.Canceled, ErrTimeoutBeforeWrite))
 	w.Handler.ServeHTTP(w.ResponseWriter, w.Request)
-	w.done <- struct{}{}
+	w.done <- timeout
 }
 
 func (w timeoutWriter) Header() http.Header {
@@ -127,17 +132,10 @@ func (w timeoutWriter) WriteHeader(status int) {
 
 func (w *timeoutWriter) Write(data []byte) (n int, err error) {
 	if !w.tryWriting() {
-		return 0, ErrTimeoutBeforeWrite
-	}
-
-	if !w.rollingDeadline.IsZero() && time.Now().After(w.rollingDeadline) {
-		w.Controller.SetWriteDeadline(w.rollingDeadline.Add(-time.Hour))
-		if _, deadlineErr := w.ResponseWriter.Write(data); deadlineErr != nil {
-			err = fmt.Errorf("%w: %w", ErrTimeoutDuringWrite, deadlineErr)
-		} else {
-			err = ErrTimeoutDuringWrite
+		if w.state.Load() == hung {
+			return 0, ErrTimeoutDuringWrite
 		}
-		return
+		return 0, ErrTimeoutBeforeWrite
 	}
 
 	n, err = w.ResponseWriter.Write(data)
@@ -146,7 +144,15 @@ func (w *timeoutWriter) Write(data []byte) (n int, err error) {
 	}
 
 	if w.Rolling > 0 {
-		w.rollingDeadline = time.Now().Add(w.Rolling)
+		if w.rollingTimer == nil {
+			w.rollingTimer = time.AfterFunc(w.Rolling, func() {
+				if w.state.CompareAndSwap(writing, hung) {
+					w.done <- hung
+				}
+			})
+			return
+		}
+		w.rollingTimer.Reset(w.Rolling)
 	}
 
 	return

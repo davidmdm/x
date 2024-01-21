@@ -2,7 +2,6 @@ package xhttp_test
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -148,8 +147,12 @@ func TestTimeoutHandler(t *testing.T) {
 				return nil
 			},
 			Opts: xhttp.TimeoutOptions{Rolling: 5 * time.Millisecond},
-			ExpectedResponseError: func(t *testing.T, err error) {
-				require.True(t, errors.Is(err, io.EOF), "expected error to be %v but got: %v", io.EOF, err)
+			// ExpectedResponseError: func(t *testing.T, err error) {
+			// 	require.True(t, errors.Is(err, io.EOF), "expected error to be %v but got: %v", io.EOF, err)
+			// },
+			ExpectedStatus: 200,
+			ExpectedReadError: func(t *testing.T, err error) {
+				require.EqualError(t, err, "unexpected EOF")
 			},
 			ExpectedServeError: func(t *testing.T, err error) {
 				require.EqualError(t, err, "request rolling timeout reached during write")
@@ -183,8 +186,7 @@ func TestTimeoutHandler(t *testing.T) {
 			},
 			ExpectedServeError: func(t *testing.T, err error) {
 				require.NotNil(t, err)
-				require.Contains(t, err.Error(), "request rolling timeout reached during write")
-				require.Contains(t, err.Error(), "i/o timeout")
+				require.EqualError(t, err, "request rolling timeout reached during write")
 			},
 
 			ExpectedStatus: 200,
