@@ -28,11 +28,11 @@ func WithSignalCancelation(parent context.Context, signals ...os.Signal) (ctx co
 		case sig := <-signalCh:
 			cancelCause(SignalCancelError{sig})
 			return
-		case <-parent.Done():
+		case <-ctx.Done():
+			return
 		case <-stop:
+			cancelCause(nil)
 		}
-
-		cancelCause(nil)
 	}()
 
 	var once sync.Once
