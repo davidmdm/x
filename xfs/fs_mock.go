@@ -21,6 +21,15 @@ var _ FS = &FSMock{}
 //			OpenFunc: func(name string) (fs.File, error) {
 //				panic("mock out the Open method")
 //			},
+//			ReadDirFunc: func(name string) ([]fs.DirEntry, error) {
+//				panic("mock out the ReadDir method")
+//			},
+//			ReadFileFunc: func(name string) ([]byte, error) {
+//				panic("mock out the ReadFile method")
+//			},
+//			StatFunc: func(name string) (fs.FileInfo, error) {
+//				panic("mock out the Stat method")
+//			},
 //		}
 //
 //		// use mockedFS in code that requires FS
@@ -31,6 +40,15 @@ type FSMock struct {
 	// OpenFunc mocks the Open method.
 	OpenFunc func(name string) (fs.File, error)
 
+	// ReadDirFunc mocks the ReadDir method.
+	ReadDirFunc func(name string) ([]fs.DirEntry, error)
+
+	// ReadFileFunc mocks the ReadFile method.
+	ReadFileFunc func(name string) ([]byte, error)
+
+	// StatFunc mocks the Stat method.
+	StatFunc func(name string) (fs.FileInfo, error)
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// Open holds details about calls to the Open method.
@@ -38,8 +56,26 @@ type FSMock struct {
 			// Name is the name argument value.
 			Name string
 		}
+		// ReadDir holds details about calls to the ReadDir method.
+		ReadDir []struct {
+			// Name is the name argument value.
+			Name string
+		}
+		// ReadFile holds details about calls to the ReadFile method.
+		ReadFile []struct {
+			// Name is the name argument value.
+			Name string
+		}
+		// Stat holds details about calls to the Stat method.
+		Stat []struct {
+			// Name is the name argument value.
+			Name string
+		}
 	}
-	lockOpen sync.RWMutex
+	lockOpen     sync.RWMutex
+	lockReadDir  sync.RWMutex
+	lockReadFile sync.RWMutex
+	lockStat     sync.RWMutex
 }
 
 // Open calls OpenFunc.
@@ -71,5 +107,101 @@ func (mock *FSMock) OpenCalls() []struct {
 	mock.lockOpen.RLock()
 	calls = mock.calls.Open
 	mock.lockOpen.RUnlock()
+	return calls
+}
+
+// ReadDir calls ReadDirFunc.
+func (mock *FSMock) ReadDir(name string) ([]fs.DirEntry, error) {
+	if mock.ReadDirFunc == nil {
+		panic("FSMock.ReadDirFunc: method is nil but FS.ReadDir was just called")
+	}
+	callInfo := struct {
+		Name string
+	}{
+		Name: name,
+	}
+	mock.lockReadDir.Lock()
+	mock.calls.ReadDir = append(mock.calls.ReadDir, callInfo)
+	mock.lockReadDir.Unlock()
+	return mock.ReadDirFunc(name)
+}
+
+// ReadDirCalls gets all the calls that were made to ReadDir.
+// Check the length with:
+//
+//	len(mockedFS.ReadDirCalls())
+func (mock *FSMock) ReadDirCalls() []struct {
+	Name string
+} {
+	var calls []struct {
+		Name string
+	}
+	mock.lockReadDir.RLock()
+	calls = mock.calls.ReadDir
+	mock.lockReadDir.RUnlock()
+	return calls
+}
+
+// ReadFile calls ReadFileFunc.
+func (mock *FSMock) ReadFile(name string) ([]byte, error) {
+	if mock.ReadFileFunc == nil {
+		panic("FSMock.ReadFileFunc: method is nil but FS.ReadFile was just called")
+	}
+	callInfo := struct {
+		Name string
+	}{
+		Name: name,
+	}
+	mock.lockReadFile.Lock()
+	mock.calls.ReadFile = append(mock.calls.ReadFile, callInfo)
+	mock.lockReadFile.Unlock()
+	return mock.ReadFileFunc(name)
+}
+
+// ReadFileCalls gets all the calls that were made to ReadFile.
+// Check the length with:
+//
+//	len(mockedFS.ReadFileCalls())
+func (mock *FSMock) ReadFileCalls() []struct {
+	Name string
+} {
+	var calls []struct {
+		Name string
+	}
+	mock.lockReadFile.RLock()
+	calls = mock.calls.ReadFile
+	mock.lockReadFile.RUnlock()
+	return calls
+}
+
+// Stat calls StatFunc.
+func (mock *FSMock) Stat(name string) (fs.FileInfo, error) {
+	if mock.StatFunc == nil {
+		panic("FSMock.StatFunc: method is nil but FS.Stat was just called")
+	}
+	callInfo := struct {
+		Name string
+	}{
+		Name: name,
+	}
+	mock.lockStat.Lock()
+	mock.calls.Stat = append(mock.calls.Stat, callInfo)
+	mock.lockStat.Unlock()
+	return mock.StatFunc(name)
+}
+
+// StatCalls gets all the calls that were made to Stat.
+// Check the length with:
+//
+//	len(mockedFS.StatCalls())
+func (mock *FSMock) StatCalls() []struct {
+	Name string
+} {
+	var calls []struct {
+		Name string
+	}
+	mock.lockStat.RLock()
+	calls = mock.calls.Stat
+	mock.lockStat.RUnlock()
 	return calls
 }
