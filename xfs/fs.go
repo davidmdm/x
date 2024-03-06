@@ -7,13 +7,15 @@ import (
 
 //go:generate moq -out fs_mock.go . FS
 type FS interface {
-	fs.FS
+	stdFS
+	// DirName returns the name used to create the rooted xfs.FS
+	DirName() string
+}
+
+type stdFS interface {
 	fs.StatFS
 	fs.ReadDirFS
 	fs.ReadFileFS
-
-	// DirName returns the name used to create the rooted xfs.FS
-	DirName() string
 }
 
 //go:generate moq -out dir_entry_mock.go . DirEntry
@@ -27,14 +29,14 @@ type FileInfo = fs.FileInfo
 
 func Dir(name string) FS {
 	return dirFS{
-		Name: name,
-		FS:   os.DirFS(name).(FS),
+		Name:  name,
+		stdFS: os.DirFS(name).(stdFS),
 	}
 }
 
 type dirFS struct {
 	Name string
-	FS
+	stdFS
 }
 
 func (fs dirFS) DirName() string {
