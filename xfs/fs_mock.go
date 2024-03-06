@@ -18,6 +18,9 @@ var _ FS = &FSMock{}
 //
 //		// make and configure a mocked FS
 //		mockedFS := &FSMock{
+//			DirNameFunc: func() string {
+//				panic("mock out the DirName method")
+//			},
 //			OpenFunc: func(name string) (fs.File, error) {
 //				panic("mock out the Open method")
 //			},
@@ -37,6 +40,9 @@ var _ FS = &FSMock{}
 //
 //	}
 type FSMock struct {
+	// DirNameFunc mocks the DirName method.
+	DirNameFunc func() string
+
 	// OpenFunc mocks the Open method.
 	OpenFunc func(name string) (fs.File, error)
 
@@ -51,6 +57,9 @@ type FSMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// DirName holds details about calls to the DirName method.
+		DirName []struct {
+		}
 		// Open holds details about calls to the Open method.
 		Open []struct {
 			// Name is the name argument value.
@@ -72,10 +81,38 @@ type FSMock struct {
 			Name string
 		}
 	}
+	lockDirName  sync.RWMutex
 	lockOpen     sync.RWMutex
 	lockReadDir  sync.RWMutex
 	lockReadFile sync.RWMutex
 	lockStat     sync.RWMutex
+}
+
+// DirName calls DirNameFunc.
+func (mock *FSMock) DirName() string {
+	if mock.DirNameFunc == nil {
+		panic("FSMock.DirNameFunc: method is nil but FS.DirName was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockDirName.Lock()
+	mock.calls.DirName = append(mock.calls.DirName, callInfo)
+	mock.lockDirName.Unlock()
+	return mock.DirNameFunc()
+}
+
+// DirNameCalls gets all the calls that were made to DirName.
+// Check the length with:
+//
+//	len(mockedFS.DirNameCalls())
+func (mock *FSMock) DirNameCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockDirName.RLock()
+	calls = mock.calls.DirName
+	mock.lockDirName.RUnlock()
+	return calls
 }
 
 // Open calls OpenFunc.
