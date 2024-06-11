@@ -12,8 +12,11 @@ type Stack struct {
 
 func (stack Stack) String() string {
 	var builder strings.Builder
-	for _, frame := range stack.Frames {
-		builder.WriteString(fmt.Sprintf("%s\n  %s:%d\n", frame.Function, frame.File, frame.Line))
+	for i, frame := range stack.Frames {
+		if i != 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString(fmt.Sprintf("%s\n  %s:%d", frame.Function, frame.File, frame.Line))
 	}
 	return builder.String()
 }
