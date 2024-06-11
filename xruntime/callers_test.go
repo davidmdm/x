@@ -8,7 +8,7 @@ import (
 
 func TestStack(t *testing.T) {
 	DoThing := func() {
-		stack := GetCallStack(3)
+		stack := CallStack(3)
 
 		fnNames := []string{}
 		for _, frame := range stack.Frames {
