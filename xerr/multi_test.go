@@ -17,7 +17,7 @@ func TestMultiErrRender(t *testing.T) {
 		{
 			Name:     "zero value",
 			Err:      xerr.MultiErr{},
-			Expected: "error",
+			Expected: "errors",
 		},
 		{
 			Name:     "only message",
@@ -53,6 +53,27 @@ func TestMultiErrRender(t *testing.T) {
 				},
 			},
 			Expected: "error occured:\n  - one\n  - nested error occured:\n    - a\n    - b",
+		},
+		{
+			Name: "single error no message",
+			Err: xerr.MultiErr{
+				Msg: "",
+				Errors: []error{
+					errors.New("test"),
+				},
+			},
+			Expected: "test",
+		},
+		{
+			Name: "multi error no message",
+			Err: xerr.MultiErr{
+				Msg: "",
+				Errors: []error{
+					errors.New("one"),
+					errors.New("two"),
+				},
+			},
+			Expected: "errors:\n  - one\n  - two",
 		},
 	}
 

@@ -14,8 +14,12 @@ type MultiErr struct {
 func (err MultiErr) Unwrap() []error { return err.Errors }
 
 func (err MultiErr) Error() string {
+	if err.Msg == "" && len(err.Errors) == 1 {
+		return err.Errors[0].Error()
+	}
+
 	if err.Msg == "" {
-		err.Msg = "error"
+		err.Msg = "errors"
 	}
 	switch len(err.Errors) {
 	case 0:
