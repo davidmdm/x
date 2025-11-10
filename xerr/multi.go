@@ -65,6 +65,14 @@ func MultiErrWithIndentFrom(msg, indent string, errs ...error) error {
 	}
 }
 
+func Join(errs ...error) error {
+	return MultiErrFrom("", errs...)
+}
+
+func JoinOrdered(errs ...error) error {
+	return MultiErrOrderedFrom("", errs...)
+}
+
 func MultiErrFrom(msg string, errs ...error) error {
 	return MultiErrWithIndentFrom(msg, "  ", errs...)
 }
