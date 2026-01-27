@@ -39,6 +39,10 @@ func (m *Map[K, V]) Clear() {
 
 func (m *Map[K, V]) Swap(key K, value V) (previous V, loaded bool) {
 	result, loaded := (*sync.Map)(m).Swap(key, value)
+	if !loaded {
+		var zero V
+		return zero, loaded
+	}
 	return result.(V), loaded
 }
 
