@@ -1,3 +1,3 @@
 module github.com/davidmdm/x/xio
 
-go 1.21
+go 1.26

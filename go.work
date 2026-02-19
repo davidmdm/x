@@ -1,0 +1,13 @@
+go 1.26.0
+
+use (
+	./xcontainer
+	./xcontext
+	./xerr
+	./xfs
+	./xhttp
+	./xio
+	./xiter
+	./xruntime
+	./xsync
+)
