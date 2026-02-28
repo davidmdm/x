@@ -15,8 +15,10 @@ func ToSet[K comparable](items []K) Set[K] {
 	return set
 }
 
-func (set Set[K]) Add(value K) {
-	set[value] = struct{}{}
+func (set Set[K]) Add(values ...K) {
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
 }
 
 func (set Set[K]) Has(value K) bool {
@@ -24,8 +26,10 @@ func (set Set[K]) Has(value K) bool {
 	return ok
 }
 
-func (set Set[K]) Remove(value K) {
-	delete(set, value)
+func (set Set[K]) Remove(values ...K) {
+	for _, value := range values {
+		delete(set, value)
+	}
 }
 
 func (set Set[K]) Union(sets ...Set[K]) Set[K] {
