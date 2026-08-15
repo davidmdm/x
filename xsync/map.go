@@ -66,3 +66,30 @@ func (m *Map[K, V]) All() iter.Seq2[K, V] {
 		})
 	}
 }
+
+func (m *Map[K, V]) Keys() iter.Seq[K] {
+	return func(yield func(K) bool) {
+		for key := range m.All() {
+			if !yield(key) {
+				return
+			}
+		}
+	}
+}
+
+func (m *Map[K, V]) Values() iter.Seq[V] {
+	return func(yield func(V) bool) {
+		for _, value := range m.All() {
+			if !yield(value) {
+				return
+			}
+		}
+	}
+}
+
+func (m *Map[K, V]) Len() (result int) {
+	for range m.All() {
+		result++
+	}
+	return
+}
