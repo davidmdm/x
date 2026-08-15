@@ -65,3 +65,10 @@ func (set *Set[T]) All() iter.Seq[T] {
 func (set *Set[T]) String() string {
 	return fmt.Sprint(slices.Collect(set.All()))
 }
+
+func (set *Set[T]) Len() (result int) {
+	for range set.All() {
+		result++
+	}
+	return
+}
